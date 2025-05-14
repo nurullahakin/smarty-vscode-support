@@ -65,7 +65,7 @@ export class BeautifySmarty {
 			let line = lines[i];
 
 			// detect smarty tags
-			let reapeat = startedRegions.length;
+			let repeat = startedRegions.length;
 
 			let startMatch = [];
 			let middleMatch = [];
@@ -87,10 +87,10 @@ export class BeautifySmarty {
 			if (startMatch.length) {
 				startedRegions.push(startMatch[0]);
 			} else if (middleMatch.length) {
-				reapeat--;
+				repeat--;
 			} else if (endMatch.length) {
 				startedRegions.pop();
-				reapeat--;
+				repeat--;
 			}
 
 			// indent smarty block
@@ -104,7 +104,7 @@ export class BeautifySmarty {
 				lines.splice(i, 1, ...newLines);
 			}
 
-			lines[i] = indent_char.repeat(Math.max(0, reapeat)) + lines[i];
+			lines[i] = indent_char.repeat(Math.max(0, repeat)) + lines[i];
 			i += 1;
 		}
 
