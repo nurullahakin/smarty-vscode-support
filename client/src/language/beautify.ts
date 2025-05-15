@@ -63,6 +63,19 @@ export class BeautifySmarty {
         const beautifyConfig = this.beautifyConfig(options);
         let formatted = beautify(docText, beautifyConfig);
 
+        // beautify() breaks multiline smarty tags (adds extra indentations to the content)
+        // we need to remove the extra indentations
+        const multilineTagPattern = /^([ \t]+){(\w+)\s*\n([^{}]*\n+?\s*)}/gm;
+        formatted = formatted.replace(multilineTagPattern, (match, indent, tag, content) => {
+            const indentLevel = indent.length / 4;
+            const subIndentLevel = indentLevel + 1;
+            let lines = content.split("\n").map((line) => line.replace(/^[ \t]*/, " ".repeat(subIndentLevel * 4)));
+            if (lines[lines.length - 1].trim() === "") {
+                lines.pop();
+            }
+            return `${indent}{${tag}\n${lines.join("\n")}\n${indent}}`;
+        });
+
         // split into lines
         const literalPattern: string = Object.values(this.literals)
             .map((r) => r.source)
@@ -74,7 +87,23 @@ export class BeautifySmarty {
         let match: RegExpExecArray;
         while ((match = linkPattern.exec(formatted))) {
             if (match.groups.linebreak !== undefined) {
-                lines.push(formatted.substring(start + match.groups.linebreak.length || 0, match.index));
+                let line = formatted.substring(start + match.groups.linebreak.length || 0, match.index);
+                // some lines are incorrectly split
+                // e.g., linebreak of a previous line leaks into the next line
+                if (line.match(/^\r?\n/)) {
+                    line = line.replace(/^\r?\n/, "");
+                }
+                // some line indentations are not correctly captured
+                // e.g. the indentation of the line right after a multiline tag opening
+                // needs compensation
+                let indentMatch = line.match(/^[ \t]+/);
+                if (indentMatch) {
+                    let remainder = indentMatch[0].length % 4;
+                    if (remainder) {
+                        line = line.replace(/^[ \t]+/, indentMatch[0] + " ".repeat(4 - remainder));
+                    }
+                }
+                lines.push(line);
                 start = match.index;
             } else if (match.groups.end !== undefined) {
                 lines.push(formatted.substring(start, formatted.length).trimLeft());
